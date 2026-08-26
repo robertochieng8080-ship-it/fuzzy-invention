@@ -141,21 +141,29 @@ try:
             msg+=b["m"]+" "+str(b["pr"])+"% @ "+str(b["od"])+" | xG "+str(round(b["xg"],1))+"\n"
             msg+="<i>"+b["reason"]+"</i>\n\n"
 
-    if len(gold)>=2:
+    # ALWAYS SAFE ACCA - 4 picks = 3.03 odds
+    if len(bets)>=3:
+        safe_picks=bets[:4] if len(bets)>=4 else bets[:3]
         tot=1
-        for g in gold[:3]: tot*=g["od"]
-        if 2.8<=tot<=4.5:
-            msg+="🔒 <b>SAFE ACCA "+str(round(tot,2))+" ODDS</b>\n"
-            for g in gold[:3]: msg+="• "+g["match"][:22]+" - "+g["m"]+"\n"
-            msg+="<b>Total "+str(round(tot,2))+" | 1000 -> "+str(int(tot*1000))+"</b>\n\n"
+        for p in safe_picks: tot*=p["od"]
+        msg+="🔒 <b>SAFE ACCA "+str(round(tot,2))+" ODDS</b>\n"
+        for p in safe_picks:
+            msg+="• "+p["match"][:22]+" - "+p["m"]+" @ "+str(p["od"])+"\n"
+        msg+="<b>Total "+str(round(tot,2))+" | 1000 -> "+str(int(tot*1000))+"</b>\n\n"
 
-    if len(silver)>=3:
-        tot=1
-        for s in silver[:3]: tot*=s["od"]
-        if 4.5<=tot<=9.0:
-            msg+="🔥 <b>RISKY ACCA "+str(round(tot,2))+" ODDS</b>\n"
-            for s in silver[:3]: msg+="• "+s["match"][:22]+" - "+s["m"]+"\n"
-            msg+="<b>Total "+str(round(tot,2))+" | 1000 -> "+str(int(tot*1000))+"</b>\n\n"
+    # ALWAYS RISKY ACCA - try high odds first, else 6 picks
+    if len(bets)>=3:
+        high=[b for b in bets if b["od"]>=1.8]
+        if len(high)>=3:
+            risky_picks=high[:3]
+        else:
+            risky_picks=bets[:6] if len(bets)>=6 else bets[:5] if len(bets)>=5 else bets[:3]
+        tot2=1
+        for p in risky_picks: tot2*=p["od"]
+        msg+="🔥 <b>RISKY ACCA "+str(round(tot2,2))+" ODDS</b>\n"
+        for p in risky_picks:
+            msg+="• "+p["match"][:22]+" - "+p["m"]+" @ "+str(p["od"])+"\n"
+        msg+="<b>Total "+str(round(tot2,2))+" | 1000 -> "+str(int(tot2*1000))+"</b>\n\n"
 
     if not bets:
         msg+="No 75%+ tips - very quiet day\n\n"
