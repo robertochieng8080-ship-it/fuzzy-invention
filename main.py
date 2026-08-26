@@ -31,9 +31,7 @@ try:
         p15=1-math.exp(-lam)*(1+lam)
         p25=1-math.exp(-lam)*(1+lam+lam*lam/2)
         btts=(1-math.exp(-eg1))*(1-math.exp(-eg2))
-        # Double chance approx
-        p1x=0.75 if eg1>eg2+0.3 else 0.60
-        return int(p15*100),int(p25*100),int(btts*100),int(p1x*100),lam
+        return int(p15*100),int(p25*100),int(btts*100),lam
 
     def get_matches(code,d):
         try:
@@ -62,7 +60,6 @@ try:
 
     LEAGUES={"EPL":"eng.1","LaLiga":"esp.1","Bundes":"ger.1","SerieA":"ita.1","Ligue1":"fra.1","Erediv":"ned.1","Portugal":"por.1","UCL":"uefa.champions"}
 
-    # --- YESTERDAY CHECK ---
     yesterday_report=""
     try:
         with open("tips_history.json","r") as f:
@@ -71,14 +68,12 @@ try:
         total=0
         details=[]
         for tip in hist.get("tips",[])[:10]:
-            # find result
             for lcode in LEAGUES.values():
                 for ev in get_matches(lcode,YESTERDAY):
                     try:
                         comp=ev["competitions"][0]
                         t1=comp["competitors"][0]["team"]["displayName"]
-                        t2=comp["competitors"][1]["team"]["displayName"]
-                        if tip["match"].split(" vs ")[0][:6].lower() in t1.lower() or t1[:6].lower() in tip["match"].lower():
+                        if tip["match"].split(" vs ")[0][:6].lower() in t1.lower():
                             tot,btts=get_score(ev)
                             if tot is None: continue
                             ok=False
@@ -95,7 +90,6 @@ try:
     except:
         yesterday_report=""
 
-    # --- TODAY + TOMORROW ---
     bets=[]
     for label,day in [("TODAY",TODAY),("TOMORROW",TOMORROW)]:
         for lname,lcode in LEAGUES.items():
@@ -109,14 +103,19 @@ try:
                     s2,c2=get_stats(t2)
                     eg1=(s1+c2)/2
                     eg2=(s2+c1)/2
-                    p15,p25,btts,p1x,xg=probs(eg1,eg2)
-                    # Build markets
-                    if p15>=90:
-                        bets.append({"tier":"GOLD","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"Over 1.5","pr":p15,"od":1.32,"xg":xg,"eg1":eg1,"eg2":eg2,"reason":t1+" "+str(s1)+" goals avg"})
-                    if p25>=80:
-                        bets.append({"tier":"SILVER","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"Over 2.5","pr":p25,"od":1.85,"xg":xg,"eg1":eg1,"eg2":eg2,"reason":"xG "+str(round(xg,2))+" expected"})
-                    if btts>=80:
-                        bets.append({"tier":"SILVER","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"BTTS","pr":btts,"od":1.90,"xg":xg,"eg1":eg1,"eg2":eg2,"reason":"Both score "+str(s1)+" vs "+str(s2)})
+                    p15,p25,btts,xg=probs(eg1,eg2)
+
+                    if p15>=85:
+                        bets.append({"tier":"GOLD","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"Over 1.5","pr":p15,"od":1.32,"xg":xg,"reason":t1+" "+str(s1)+" avg"})
+                    elif p15>=75:
+                        bets.append({"tier":"SILVER","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"Over 1.5","pr":p15,"od":1.32,"xg":xg,"reason":"Safe Over "+str(round(xg,1))+" xG"})
+
+                    if p25>=75:
+                        bets.append({"tier":"SILVER","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"Over 2.5","pr":p25,"od":1.85,"xg":xg,"reason":"xG "+str(round(xg,2))+" expected"})
+
+                    if btts>=75:
+                        bets.append({"tier":"SILVER","day":label,"lg":lname,"match":t1+" vs "+t2,"time":get_time(ev.get("date","")),"m":"BTTS","pr":btts,"od":1.90,"xg":xg,"reason":"Both score "+str(s1)+" vs "+str(s2)})
+
                 except: continue
 
     bets.sort(key=lambda x:x["pr"],reverse=True)
@@ -129,20 +128,19 @@ try:
     msg+=yesterday_report
 
     if gold:
-        msg+="🥇 <b>GOLD 90%+ - SUPER SAFE</b>\n"
+        msg+="🥇 <b>GOLD 85%+ - SUPER SAFE</b>\n"
         for b in gold:
             msg+="<b>"+b["day"]+" "+b["lg"]+" | "+b["time"]+"</b>\n"+b["match"]+"\n"
             msg+=b["m"]+" "+str(b["pr"])+"% @ "+str(b["od"])+" | xG "+str(round(b["xg"],1))+"\n"
             msg+="<i>"+b["reason"]+"</i>\n\n"
 
     if silver:
-        msg+="🥈 <b>SILVER 80%+ - VALUE</b>\n"
+        msg+="🥈 <b>SILVER 75%+ - VALUE</b>\n"
         for b in silver[:5]:
             msg+="<b>"+b["day"]+" "+b["lg"]+" | "+b["time"]+"</b>\n"+b["match"]+"\n"
             msg+=b["m"]+" "+str(b["pr"])+"% @ "+str(b["od"])+" | xG "+str(round(b["xg"],1))+"\n"
             msg+="<i>"+b["reason"]+"</i>\n\n"
 
-    # SAFE ACCA 3-4 odds from GOLD
     if len(gold)>=2:
         tot=1
         for g in gold[:3]: tot*=g["od"]
@@ -151,7 +149,6 @@ try:
             for g in gold[:3]: msg+="• "+g["match"][:22]+" - "+g["m"]+"\n"
             msg+="<b>Total "+str(round(tot,2))+" | 1000 -> "+str(int(tot*1000))+"</b>\n\n"
 
-    # RISKY ACCA 5-8 odds from SILVER
     if len(silver)>=3:
         tot=1
         for s in silver[:3]: tot*=s["od"]
@@ -161,10 +158,9 @@ try:
             msg+="<b>Total "+str(round(tot,2))+" | 1000 -> "+str(int(tot*1000))+"</b>\n\n"
 
     if not bets:
-        msg+="No 80%+ tips today - quiet day\n\n"
-    msg+="<i>Gold 90%+ | Silver 80%+ | Safe 3-4 | Risky 5-8 | xG Model | EAT | 18+</i>"
+        msg+="No 75%+ tips - very quiet day\n\n"
+    msg+="<i>Gold 85%+ | Silver 75%+ | Safe 3-4 | Risky 5-8 | xG | EAT | 18+</i>"
 
-    # Save today for tomorrow check
     try:
         with open("tips_history.json","w") as f:
             json.dump({"date": TODAY.strftime("%Y-%m-%d"), "tips": bets[:10]}, f)
